@@ -964,6 +964,25 @@ async function handleScan(e) {
       }
     }
 
+    // Strategy 2b: Shopee/payment confirmation — "214.200đ" or "214.200d" or "214.200" after keywords
+    // OCR often reads đ as various chars, so match broadly after payment keywords
+    if (!bestAmount) {
+      const m2b = text.match(/(?:thanh toán|đã thanh toán|tổng tiền|số tiền)[^\d]{0,20}([1-9]\d{0,2}(?:[.,]\d{3})+)\s*[đdĐ]?/i);
+      if (m2b) {
+        const c = parseInt(m2b[1].replace(/[.,]/g, ''));
+        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'Thanh toán'; }
+      }
+    }
+
+    // Strategy 2c: any "X.XXX đ" or "X.XXXđ" pattern (dot thousands, even single group) — Shopee style
+    if (!bestAmount) {
+      const m2c = text.match(/\b([1-9]\d{0,2}(?:\.\d{3})+)\s*[đdĐ]/i);
+      if (m2c) {
+        const c = parseInt(m2c[1].replace(/\./g, ''));
+        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'Số tiền'; }
+      }
+    }
+
     // Strategy 3: ShopeePay/ZaloPay — "-107.000a" or "-107.000đ" (OCR reads đ as a/d/o)
     if (!bestAmount) {
       const m3 = text.match(/[-]([1-9]\d{0,2}[\.,]\d{3}(?:[\.,]\d{3})*)\s*[đdaob]?/i);
