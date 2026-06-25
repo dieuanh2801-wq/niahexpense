@@ -10,7 +10,24 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
-.app{max-width:390px;margin:0 auto;padding:env(safe-area-inset-top,20px) 0 120px}
+.app{max-width:480px;width:100%;margin:0 auto;padding:env(safe-area-inset-top,20px) 0 120px}
+
+/* Responsive grid - 2 cols on small, 3 on medium+ */
+@media(max-width:320px){
+  .cat-grid{grid-template-columns:repeat(2,1fr)}
+  .wallet-toggle{grid-template-columns:1fr 1fr}
+  .balance-main{font-size:26px}
+}
+@media(min-width:481px){
+  .app{padding-left:16px;padding-right:16px}
+  .cat-grid{grid-template-columns:repeat(4,1fr)}
+  .season-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(min-width:768px){
+  .app{max-width:680px}
+  .cat-grid{grid-template-columns:repeat(5,1fr)}
+  .balance-card,.log-form,.chart-wrap,.reminder-card{border-radius:16px}
+}
 .px{padding-left:16px;padding-right:16px}
 
 /* TABS */
@@ -412,8 +429,18 @@ let scannedAmount = null;
 function applyScanned() {
   if (!scannedAmount) return;
   document.getElementById('amount').value = scannedAmount;
+
+  // Clear scan UI to prevent duplicate
+  scannedAmount = null;
+  document.getElementById('scan-preview').style.display = 'none';
+  document.getElementById('scan-preview').src = '';
+  document.getElementById('scan-result').style.display = 'none';
+  document.getElementById('scan-apply').style.display = 'none';
+  document.getElementById('scan-err').style.display = 'none';
+  document.getElementById('scan-input').value = '';
+
   document.querySelector('.log-form').scrollIntoView({ behavior: 'smooth' });
-  toast('✓ Đã điền ' + scannedAmount.toLocaleString('vi') + 'đ');
+  toast('✓ Đã điền số tiền — chọn danh mục và lưu');
 }
 
 // Set default date to today
@@ -895,8 +922,18 @@ async function handleScan(e) {
 function applyScanned() {
   if (!scannedAmount) return;
   document.getElementById('amount').value = scannedAmount;
+
+  // Clear scan UI to prevent duplicate
+  scannedAmount = null;
+  document.getElementById('scan-preview').style.display = 'none';
+  document.getElementById('scan-preview').src = '';
+  document.getElementById('scan-result').style.display = 'none';
+  document.getElementById('scan-apply').style.display = 'none';
+  document.getElementById('scan-err').style.display = 'none';
+  document.getElementById('scan-input').value = '';
+
   document.querySelector('.log-form').scrollIntoView({ behavior: 'smooth' });
-  toast('✓ Đã điền ' + scannedAmount.toLocaleString('vi') + 'đ');
+  toast('✓ Đã điền số tiền — chọn danh mục và lưu');
 }
 
 renderCats();render();update();
