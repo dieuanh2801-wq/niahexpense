@@ -335,7 +335,7 @@ const CATS={
 const DEFAULT_BUDGETS={tien_nha:40000000,dien_nuoc:20000000,don_dep:15000000,an_uong:4000000,tieu_hao:3000000,tra_no:11000000,hoc_phi:12000000,sua_chua:5000000,sinh_hoat:5000000,khac:2000000};
 
 let type='chi', cat=null, wallet='biz';
-let entries=[], let budgets={};
+let entries=[], budgets={};
 
 function load(){
   try{entries=JSON.parse(localStorage.getItem('niah_v3')||'[]')}catch(e){}
