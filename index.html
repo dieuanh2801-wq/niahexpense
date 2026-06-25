@@ -957,6 +957,24 @@ async function handleScan(e) {
       }
     }
 
+    // Strategy 4b: Techcombank "VND 1,144,000" — VND before number
+    if (!bestAmount) {
+      const m4b = text.match(/VND\s+([1-9][\d,\.]+)/i);
+      if (m4b) {
+        const c = parseInt(m4b[1].replace(/[,\.]/g, ''));
+        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'VND transfer'; }
+      }
+    }
+
+    // Strategy 4c: "Successfully transferred ... VND X,XXX,XXX"
+    if (!bestAmount) {
+      const m4c = text.match(/transferred[\s\S]{0,50}?([1-9][\d,\.]+)/i);
+      if (m4c) {
+        const c = parseInt(m4c[1].replace(/[,\.]/g, ''));
+        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'Transfer'; }
+      }
+    }
+
     // Strategy 5: plain number before VND — e.g. "213613 VND"
     if (!bestAmount) {
       const m5 = text.match(/([1-9]\d{4,8})\s*VND/i);
