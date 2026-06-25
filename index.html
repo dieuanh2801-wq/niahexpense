@@ -480,6 +480,7 @@ function addEntry(){
   entries.unshift(e);save();
   document.getElementById('amount').value='';
   document.getElementById('note').value='';
+  document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
   cat=null;
   renderCats();render();update();
   toast(type==='chi'?'✓ Đã ghi chi tiêu':'✓ Đã ghi thu nhập');
