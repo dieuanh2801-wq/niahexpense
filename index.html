@@ -264,6 +264,11 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
   <!-- PAGE: CHART -->
   <div class="page" id="page-chart">
     <div class="header"><div class="header-title">Biểu đồ</div></div>
+    <div style="display:flex;gap:6px;margin:0 16px 14px">
+      <button id="cw-all" onclick="setChartWallet('all')" style="flex:1;padding:8px;border-radius:10px;border:0.5px solid #4ade80;background:#0d2a1a;color:#4ade80;font-size:13px;font-weight:500;cursor:pointer">Tất cả</button>
+      <button id="cw-biz" onclick="setChartWallet('biz')" style="flex:1;padding:8px;border-radius:10px;border:0.5px solid #2a2a2a;background:#141414;color:#555;font-size:13px;font-weight:500;cursor:pointer">🏢 KD</button>
+      <button id="cw-per" onclick="setChartWallet('personal')" style="flex:1;padding:8px;border-radius:10px;border:0.5px solid #2a2a2a;background:#141414;color:#555;font-size:13px;font-weight:500;cursor:pointer">👤 CN</button>
+    </div>
     <div class="chart-wrap">
       <div class="chart-title">Thu chi 6 tháng gần nhất</div>
       <div class="bar-chart" id="bar-chart"></div>
@@ -310,7 +315,8 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 <script>
 const CATS={
   chi:[
-    {id:'tien_nha',label:'Tiền nhà',icon:'🏠'},
+    {id:'tien_nha',label:'Tiền nhà KD',icon:'🏠',wallet:'biz'},
+    {id:'tien_nha_2',label:'Tiền nhà CN',icon:'🏡',wallet:'personal'},
     {id:'dien_nuoc',label:'Điện nước',icon:'⚡'},
     {id:'don_dep',label:'Dọn dẹp',icon:'🧹'},
     {id:'an_uong',label:'Ăn uống',icon:'🍜'},
@@ -332,14 +338,16 @@ const CATS={
   ]
 };
 
-const DEFAULT_BUDGETS={tien_nha:40000000,dien_nuoc:20000000,don_dep:15000000,an_uong:4000000,tieu_hao:3000000,tra_no:11000000,hoc_phi:12000000,sua_chua:5000000,sinh_hoat:5000000,khac:2000000};
+const DEFAULT_BUDGETS_BIZ={tien_nha:40000000,dien_nuoc:20000000,don_dep:15000000,tieu_hao:3000000,tra_no:11000000,thue:2000000,khac:2000000};
+const DEFAULT_BUDGETS_PER={tien_nha_2:5000000,an_uong:4000000,sinh_hoat:5000000,hoc_phi:12000000,tra_no:6500000,tiet_kiem:5000000,khac:1000000};
 
 let type='chi', cat=null, wallet='biz';
 let entries=[], budgets={};
+let chartWallet='all';
 
 function load(){
   try{entries=JSON.parse(localStorage.getItem('niah_v3')||'[]')}catch(e){}
-  try{budgets=JSON.parse(localStorage.getItem('niah_budgets')||JSON.stringify(DEFAULT_BUDGETS))}catch(e){budgets={...DEFAULT_BUDGETS}}
+  try{budgets=JSON.parse(localStorage.getItem('niah_budgets')||'null')||{biz:{...DEFAULT_BUDGETS_BIZ},personal:{...DEFAULT_BUDGETS_PER}}}catch(e){budgets={biz:{...DEFAULT_BUDGETS_BIZ},personal:{...DEFAULT_BUDGETS_PER}}}
 }
 
 function save(){try{localStorage.setItem('niah_v3',JSON.stringify(entries))}catch(e){}}
@@ -359,13 +367,34 @@ function deleteEntry(id){
   toast('Đã xoá giao dịch');
 }
 function saveBudgets(){
+  if(!budgets||!budgets.biz) budgets={biz:{},personal:{}};
   CATS.chi.forEach(function(c){
-    const el=document.getElementById('bi_'+c.id);
-    if(el&&el.value) budgets[c.id]=parseFloat(el.value)*1000000||0;
+    const elB=document.getElementById('bi_biz_'+c.id);
+    const elP=document.getElementById('bi_per_'+c.id);
+    if(elB&&elB.value!=='') budgets.biz[c.id]=parseFloat(elB.value)*1000000||0;
+    if(elP&&elP.value!=='') budgets.personal[c.id]=parseFloat(elP.value)*1000000||0;
   });
   try{localStorage.setItem('niah_budgets',JSON.stringify(budgets))}catch(e){}
   toast('Đã lưu ngân sách');
   update();
+}
+
+function setChartWallet(w){
+  chartWallet=w;
+  const styles={
+    all:{border:'0.5px solid #4ade80',background:'#0d2a1a',color:'#4ade80'},
+    biz:{border:'0.5px solid #4ade80',background:'#0d2a1a',color:'#4ade80'},
+    personal:{border:'0.5px solid #a78bfa',background:'#1e1633',color:'#a78bfa'},
+  };
+  const inactive={border:'0.5px solid #2a2a2a',background:'#141414',color:'#555'};
+  ['all','biz','per'].forEach(function(id){
+    const mapW={all:'all',biz:'biz',per:'personal'};
+    const el=document.getElementById('cw-'+id);
+    if(!el)return;
+    const s=mapW[id]===w?styles[w]:inactive;
+    el.style.border=s.border;el.style.background=s.background;el.style.color=s.color;
+  });
+  renderChart();
 }
 
 function showPage(p){
@@ -404,8 +433,22 @@ function setType(t){
 }
 
 function renderCats(){
-  document.getElementById('cat-grid').innerHTML=CATS[type].map(function(c){
-    return '<button class="cat-btn'+(cat===c.id?' active':'')+'" onclick="selCat(\''+c.id+'\')">'+'<span class="cat-icon">'+c.icon+'</span>'+c.label+'</button>';
+  const now=new Date(),m=now.getMonth(),y=now.getFullYear();
+  const mx=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===m&&d.getFullYear()===y&&e.type==='chi'&&e.wallet===wallet;});
+  const spent={};
+  mx.forEach(function(e){spent[e.cat]=(spent[e.cat]||0)+e.amount;});
+  const walletBudgets=budgets&&budgets.biz?budgets[wallet]||{}:budgets||{};
+  // Filter: hide wallet-specific cats that don't belong to current wallet
+  const filteredCats=CATS[type].filter(function(c){return !c.wallet||c.wallet===wallet;});
+  document.getElementById('cat-grid').innerHTML=filteredCats.map(function(c){
+    let badge='';
+    if(type==='chi'&&walletBudgets[c.id]>0){
+      const s=spent[c.id]||0;
+      const pct=s/walletBudgets[c.id];
+      if(pct>=1) badge='<span style="position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#f87171"></span>';
+      else if(pct>=0.8) badge='<span style="position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>';
+    }
+    return '<button class="cat-btn'+(cat===c.id?' active':'')+'" onclick="selCat(\''+c.id+'\')" style="position:relative">'+badge+'<span class="cat-icon">'+c.icon+'</span>'+c.label+'</button>';
   }).join('');
 }
 
@@ -493,7 +536,8 @@ function renderBudgetBars(mx){
   mx.filter(function(e){return e.type==='chi';}).forEach(function(e){
     chiBycat[e.cat]=(chiBycat[e.cat]||0)+e.amount;
   });
-  const cats=Object.keys(chiBycat).filter(function(k){return budgets[k]>0;});
+  const walletB=budgets&&budgets.biz?budgets[wallet]||{}:budgets||{};
+  const cats=Object.keys(chiBycat).filter(function(k){return walletB[k]>0;});
   // Put budget bars in chart page, not log page
   let bsEl=document.getElementById('budget-bars-inline');
   if(!bsEl){
@@ -507,7 +551,8 @@ function renderBudgetBars(mx){
   bsEl.innerHTML='<div style="font-size:10px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Ngân sách tháng này</div>'
     +cats.map(function(k){
       const spent=chiBycat[k]||0;
-      const limit=budgets[k]||1;
+      const walletBudgets=budgets&&budgets.biz?budgets[wallet]||{}:budgets||{};
+      const limit=walletBudgets[k]||0;
       const pct=Math.min(100,Math.round(spent/limit*100));
       const cls=pct>=100?'over':pct>=80?'warn':'ok';
       const catObj=CATS.chi.find(function(c){return c.id===k;});
@@ -527,14 +572,14 @@ function renderChart(){
     months.push({m:d.getMonth(),y:d.getFullYear(),label:(d.getMonth()+1)+'/'+(d.getFullYear()%100)});
   }
   const maxVal=Math.max(...months.map(function(mo){
-    const f=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===mo.m&&d.getFullYear()===mo.y;});
+    const f=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===mo.m&&d.getFullYear()===mo.y&&(chartWallet==='all'||e.wallet===chartWallet);});
     return Math.max(
       f.filter(function(e){return e.type==='thu';}).reduce(function(s,e){return s+e.amount;},0),
       f.filter(function(e){return e.type==='chi';}).reduce(function(s,e){return s+e.amount;},0)
     );
   }),1);
   document.getElementById('bar-chart').innerHTML=months.map(function(mo){
-    const f=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===mo.m&&d.getFullYear()===mo.y;});
+    const f=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===mo.m&&d.getFullYear()===mo.y&&(chartWallet==='all'||e.wallet===chartWallet);});
     const thu=f.filter(function(e){return e.type==='thu';}).reduce(function(s,e){return s+e.amount;},0);
     const chi=f.filter(function(e){return e.type==='chi';}).reduce(function(s,e){return s+e.amount;},0);
     const th=Math.round(thu/maxVal*90);
@@ -548,14 +593,15 @@ function renderChart(){
   }).join('');
 
   const now2=new Date(),m=now2.getMonth(),y=now2.getFullYear();
-  const thisMo=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===m&&d.getFullYear()===y&&e.type==='chi';});
+  const thisMo=entries.filter(function(e){const d=new Date(e.id);return d.getMonth()===m&&d.getFullYear()===y&&e.type==='chi'&&(chartWallet==='all'||e.wallet===chartWallet);});
   const byCat={};
   thisMo.forEach(function(e){byCat[e.cat]=(byCat[e.cat]||0)+e.amount;});
   const total=Object.values(byCat).reduce(function(s,v){return s+v;},0)||1;
   const sorted=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
   // Unified view: merge spending with budget limits
   // Get all cats that have either spending or budget
-  const allCatIds=new Set([...Object.keys(byCat),...Object.keys(budgets).filter(function(k){return budgets[k]>0;})]);
+  const wb2=budgets&&budgets.biz?budgets[chartWallet==='all'?'biz':chartWallet]||{}:budgets||{};
+  const allCatIds=new Set([...Object.keys(byCat),...Object.keys(wb2).filter(function(k){return wb2[k]>0;})]);
   const unifiedRows=[...allCatIds].map(function(k){
     return{id:k,spent:byCat[k]||0,limit:budgets[k]||0};
   }).filter(function(r){return r.spent>0||r.limit>0;})
@@ -635,14 +681,22 @@ function renderReminders(){
 }
 
 function renderBudgetSettings(){
-  document.getElementById('budget-settings').innerHTML=CATS.chi.map(function(c){
-    const val=budgets[c.id]?budgets[c.id]/1e6:0;
-    return '<div class="budget-setting-row">'
-      +'<span class="budget-setting-name">'+c.icon+' '+c.label+'</span>'
-      +'<input class="budget-input" id="bi_'+c.id+'" type="number" inputmode="decimal" placeholder="0" value="'+(val||'')+'">'
-      +'<span style="font-size:11px;color:#333;margin-left:2px">tr</span>'
-      +'</div>';
-  }).join('');
+  if(!budgets||!budgets.biz) budgets={biz:{...DEFAULT_BUDGETS_BIZ},personal:{...DEFAULT_BUDGETS_PER}};
+  document.getElementById('budget-settings').innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;font-size:12px;font-weight:500;text-align:center">'
+    +'<div style="color:#666">Danh mục</div>'
+    +'<div style="color:#4ade80;background:#0d2a1a;padding:5px;border-radius:8px">🏢 KD</div>'
+    +'<div style="color:#a78bfa;background:#1e1633;padding:5px;border-radius:8px">👤 CN</div>'
+    +'</div>'
+    +CATS.chi.map(function(c){
+      const vB=budgets.biz[c.id]?budgets.biz[c.id]/1e6:'';
+      const vP=budgets.personal[c.id]?budgets.personal[c.id]/1e6:'';
+      return '<div style="display:grid;grid-template-columns:1fr 80px 80px;gap:6px;align-items:center;padding:7px 0;border-bottom:0.5px solid #1a1a1a">'
+        +'<span style="font-size:13px;color:#aaa">'+c.icon+' '+c.label+'</span>'
+        +'<div style="display:flex;align-items:center;gap:2px"><input class="budget-input" id="bi_biz_'+c.id+'" type="number" inputmode="decimal" placeholder="-" value="'+(vB||'')+'" style="width:100%"><span style="font-size:10px;color:#444">tr</span></div>'
+        +'<div style="display:flex;align-items:center;gap:2px"><input class="budget-input" id="bi_per_'+c.id+'" type="number" inputmode="decimal" placeholder="-" value="'+(vP||'')+'" style="width:100%"><span style="font-size:10px;color:#444">tr</span></div>'
+        +'</div>';
+    }).join('');
 }
 
 function toggleImport(){
