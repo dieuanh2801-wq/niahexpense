@@ -347,6 +347,13 @@ function switchWallet(id){
   save();render();update();
   toast('✓ Đã chuyển sang ví '+(entries[idx].wallet==='biz'?'Kinh doanh':'Cá nhân'));
 }
+
+function deleteEntry(id){
+  if(!confirm('Xoá giao dịch này?'))return;
+  entries=entries.filter(function(e){return e.id!=id;});
+  save();render();update();
+  toast('Đã xoá giao dịch');
+}
 function saveBudgets(){
   CATS.chi.forEach(function(c){
     const el=document.getElementById('bi_'+c.id);
@@ -453,22 +460,24 @@ function applyScanned() {
 
 function render(){
   const el=document.getElementById('entries-list');
-  const filtered=entries.filter(function(e){return e.wallet===wallet;});
-  if(!filtered.length){el.innerHTML='<div class="empty">Chưa có giao dịch</div>';return;}
-  el.innerHTML=filtered.slice(0,40).map(function(e){
+  const sorted=entries.slice().sort(function(a,b){return b.id-a.id;});
+  if(!sorted.length){el.innerHTML='<div class="empty">Chưa có giao dịch</div>';return;}
+  el.innerHTML=sorted.slice(0,50).map(function(e){
     const walletBadge=e.wallet==='biz'
       ?'<span style="font-size:10px;color:#4ade80;background:#0d2a1a;padding:1px 6px;border-radius:8px;border:0.5px solid #4ade80">KD</span>'
       :'<span style="font-size:10px;color:#a78bfa;background:#1e1633;padding:1px 6px;border-radius:8px;border:0.5px solid #a78bfa">CN</span>';
-    const switchBtn='<button onclick="switchWallet('+JSON.stringify(e.id)+')" style="background:none;border:none;cursor:pointer;font-size:11px;color:#444;padding:0;margin-left:4px" title="Đổi ví">⇄</button>';
+    const switchBtn='<button onclick="switchWallet('+JSON.stringify(e.id)+')" style="background:none;border:none;cursor:pointer;font-size:11px;color:#555;padding:2px 4px" title="Đổi ví">⇄</button>';
+    const delBtn='<button onclick="deleteEntry('+JSON.stringify(e.id)+')" style="background:none;border:none;cursor:pointer;font-size:13px;color:#3a3a3a;padding:2px 4px" title="Xoá">✕</button>';
     return '<div class="entry">'
       +'<div class="entry-icon '+e.type+'">'+e.icon+'</div>'
       +'<div class="entry-body">'
-        +'<div class="entry-cat">'+e.label+' '+walletBadge+switchBtn+'</div>'
+        +'<div class="entry-cat">'+e.label+' '+walletBadge+'</div>'
         +(e.note?'<div class="entry-note">'+e.note+'</div>':'')
+        +'<div class="entry-note" style="margin-top:2px">'+e.time+'</div>'
       +'</div>'
-      +'<div class="entry-right">'
+      +'<div class="entry-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
         +'<div class="entry-amount '+e.type+'">'+(e.type==='chi'?'−':'+') +fmt(e.amount)+'</div>'
-        +'<div class="entry-time">'+e.time+'</div>'
+        +'<div style="display:flex">'+switchBtn+delBtn+'</div>'
       +'</div>'
     +'</div>';
   }).join('');
