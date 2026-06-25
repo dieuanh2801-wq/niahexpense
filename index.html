@@ -36,9 +36,9 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 
 /* WALLET TABS */
 .wallet-toggle{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 16px 14px}
-.wallet-btn{padding:9px;border-radius:11px;border:0.5px solid #2a2a2a;background:#141414;color:#555;font-size:13px;font-weight:500;cursor:pointer;text-align:center}
-.wallet-btn.active.biz{background:#0d1433;border-color:#378ADD;color:#85B7EB}
-.wallet-btn.active.personal{background:#1e1633;border-color:#7c3aed;color:#c4b5fd}
+.wallet-btn{padding:9px;border-radius:11px;border:0.5px solid #2a2a2a;background:#141414;color:#555;font-size:13px;font-weight:500;cursor:pointer;text-align:center;transition:all .2s}
+.wallet-btn.active.biz{background:#0d2a1a;border-color:#4ade80;color:#4ade80;box-shadow:0 0 12px rgba(74,222,128,0.2)}
+.wallet-btn.active.personal{background:#1e1633;border-color:#a78bfa;color:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,0.2)}
 
 /* BUDGET BARS */
 .budget-section{margin:0 16px 14px}
@@ -316,6 +316,14 @@ function load(){
 }
 
 function save(){try{localStorage.setItem('niah_v3',JSON.stringify(entries))}catch(e){}}
+
+function switchWallet(id){
+  const idx=entries.findIndex(function(e){return e.id==id;});
+  if(idx===-1)return;
+  entries[idx].wallet=entries[idx].wallet==='biz'?'personal':'biz';
+  save();render();update();
+  toast('✓ Đã chuyển sang ví '+(entries[idx].wallet==='biz'?'Kinh doanh':'Cá nhân'));
+}
 function saveBudgets(){
   CATS.chi.forEach(function(c){
     const el=document.getElementById('bi_'+c.id);
@@ -341,6 +349,16 @@ function setWallet(w){
   wallet=w;
   document.getElementById('wbiz').className='wallet-btn'+(w==='biz'?' active biz':'');
   document.getElementById('wper').className='wallet-btn'+(w==='personal'?' active personal':'');
+  const bar=document.getElementById('wallet-bar');
+  const icon=document.getElementById('wallet-bar-icon');
+  const label=document.getElementById('wallet-bar-label');
+  if(w==='biz'){
+    bar.style.background='#0d2a1a';bar.style.color='#4ade80';bar.style.borderColor='#4ade80';
+    icon.textContent='🏢';label.textContent='Đang ghi: Kinh doanh';
+  } else {
+    bar.style.background='#1e1633';bar.style.color='#a78bfa';bar.style.borderColor='#a78bfa';
+    icon.textContent='👤';label.textContent='Đang ghi: Cá nhân';
+  }
   update();
 }
 
@@ -408,10 +426,14 @@ function render(){
   const filtered=entries.filter(function(e){return e.wallet===wallet;});
   if(!filtered.length){el.innerHTML='<div class="empty">Chưa có giao dịch</div>';return;}
   el.innerHTML=filtered.slice(0,40).map(function(e){
+    const walletBadge=e.wallet==='biz'
+      ?'<span style="font-size:10px;color:#4ade80;background:#0d2a1a;padding:1px 6px;border-radius:8px;border:0.5px solid #4ade80">KD</span>'
+      :'<span style="font-size:10px;color:#a78bfa;background:#1e1633;padding:1px 6px;border-radius:8px;border:0.5px solid #a78bfa">CN</span>';
+    const switchBtn='<button onclick="switchWallet(''+e.id+'')" style="background:none;border:none;cursor:pointer;font-size:11px;color:#444;padding:0;margin-left:4px" title="Đổi ví">⇄</button>';
     return '<div class="entry">'
       +'<div class="entry-icon '+e.type+'">'+e.icon+'</div>'
       +'<div class="entry-body">'
-        +'<div class="entry-cat">'+e.label+'</div>'
+        +'<div class="entry-cat">'+e.label+' '+walletBadge+switchBtn+'</div>'
         +(e.note?'<div class="entry-note">'+e.note+'</div>':'')
       +'</div>'
       +'<div class="entry-right">'
@@ -807,16 +829,25 @@ async function handleScan(e) {
       }
     }
 
-    // Strategy 4: plain number before VND — e.g. "213613 VND"
+    // Strategy 4: English format "Amount: - 3,220,400" or "Amount: 3,220,400"
     if (!bestAmount) {
-      const m4 = text.match(/([1-9]\d{4,8})\s*VND/i);
+      const m4 = text.match(/amount\s*:\s*[-]?\s*([1-9][\d,\.]+)/i);
       if (m4) {
-        const c = parseInt(m4[1]);
+        const c = parseInt(m4[1].replace(/[,\.]/g, ''));
+        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'Amount'; }
+      }
+    }
+
+    // Strategy 5: plain number before VND — e.g. "213613 VND"
+    if (!bestAmount) {
+      const m5 = text.match(/([1-9]\d{4,8})\s*VND/i);
+      if (m5) {
+        const c = parseInt(m5[1]);
         if (c >= 10000 && c <= 999999999) { bestAmount = c; note = 'Số tiền VND'; }
       }
     }
 
-    // Strategy 5: number after success keywords
+    // Strategy 6: number after success keywords
     if (!bestAmount) {
       const m5 = text.match(/(?:thành công)[^\n]*\n\s*([\d,\.]+)/i);
       if (m5) {
