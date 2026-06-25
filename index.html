@@ -203,7 +203,11 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
         <button class="type-btn thu" id="btn-thu" onclick="setType('thu')">+ Thu</button>
       </div>
       <div class="cat-grid" id="cat-grid"></div>
-      <input class="amount-input" id="amount" type="number" inputmode="decimal" placeholder="Số tiền...">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <label style="font-size:12px;color:#555;white-space:nowrap">📅 Ngày:</label>
+      <input id="entry-date" type="date" style="flex:1;background:#1a1a1a;border:0.5px solid #2a2a2a;border-radius:10px;padding:9px 12px;font-size:14px;color:#f0f0f0;outline:none;font-family:-apple-system,sans-serif">
+    </div>
+    <input class="amount-input" id="amount" type="number" inputmode="decimal" placeholder="Số tiền...">
       <textarea class="note-input" id="note" rows="2" placeholder="Ghi chú..."></textarea>
       <button class="submit-btn" onclick="addEntry()">Lưu giao dịch</button>
     </div>
@@ -289,6 +293,7 @@ const CATS={
     {id:'hoc_phi',label:'Học phí',icon:'📚'},
     {id:'sua_chua',label:'Sửa chữa',icon:'🔧'},
     {id:'sinh_hoat',label:'Sinh hoạt',icon:'👛'},
+    {id:'thue',label:'Tiền thuế',icon:'🧾'},
     {id:'khac',label:'Khác',icon:'📌'},
   ],
   thu:[
@@ -367,11 +372,15 @@ function addEntry(){
   if(!a||a<=0){toast('Nhập số tiền đi!');return;}
   if(!cat){toast('Chọn danh mục nhé!');return;}
   const c=CATS[type].find(function(x){return x.id===cat;});
+  const dateVal=document.getElementById('entry-date').value;
+  const entryDate=dateVal?new Date(dateVal):new Date();
   const e={
-    id:Date.now(),type,cat,label:c.label,icon:c.icon,
+    id:dateVal?entryDate.getTime()+(Math.random()*1000|0):Date.now(),
+    type,cat,label:c.label,icon:c.icon,
     amount:a,wallet,
     note:document.getElementById('note').value.trim(),
-    time:new Date().toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    time:entryDate.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    dateStr:dateVal||new Date().toISOString().split('T')[0]
   };
   entries.unshift(e);save();
   document.getElementById('amount').value='';
@@ -388,6 +397,8 @@ function applyScanned() {
   toast('✓ Đã điền ' + scannedAmount.toLocaleString('vi') + 'đ');
 }
 
+// Set default date to today
+document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
 renderCats();render();update();
   toast(type==='chi'?'✓ Đã ghi chi tiêu':'✓ Đã ghi thu nhập');
 }
@@ -588,43 +599,87 @@ function handleCSV(e){
   e.target.value='';
 }
 
+function parseCSVLine(line){
+  // Handle quoted fields with commas inside
+  const result=[];
+  let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"'){inQ=!inQ;}
+    else if(line[i]===','&&!inQ){result.push(cur.trim());cur='';}
+    else{cur+=line[i];}
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function parseCSV(text){
   const lines=text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
   if(lines.length<2)return[];
-  const header=lines[0].split(',').map(function(h){return h.trim().replace(/"/g,'').toLowerCase();});
+  const header=parseCSVLine(lines[0]).map(function(h){return h.replace(/"/g,'').toLowerCase().trim();});
   const results=[];
+
+  // Detect Airbnb format
+  const isAirbnb=header.includes('confirmation code')||header.includes('gross earnings');
+
   for(let i=1;i<lines.length;i++){
-    const cols=lines[i].split(',').map(function(c){return c.trim().replace(/"/g,'');});
-    if(cols.length<4)continue;
-    // Try to map columns flexibly
-    const dateIdx=header.findIndex(function(h){return h.includes('ngày')||h.includes('date')||h.includes('time');});
-    const typeIdx=header.findIndex(function(h){return h.includes('loại')||h.includes('type')||h.includes('thu')||h.includes('chi');});
-    const catIdx=header.findIndex(function(h){return h.includes('hạng')||h.includes('cat')||h.includes('danh')||h.includes('label');});
-    const amtIdx=header.findIndex(function(h){return h.includes('tiền')||h.includes('amount')||h.includes('số');});
-    const noteIdx=header.findIndex(function(h){return h.includes('ghi')||h.includes('note');});
+    const cols=parseCSVLine(lines[i]);
+    if(cols.length<3)continue;
 
-    const amtRaw=cols[amtIdx>=0?amtIdx:3]||'0';
-    const amt=parseInt(amtRaw.replace(/[^0-9]/g,''))||0;
-    if(amt===0)continue;
+    let amt=0, type='thu', catLabel='Airbnb', dateRaw='', note='';
 
-    const typeRaw=(cols[typeIdx>=0?typeIdx:1]||'chi').toLowerCase();
-    const type=typeRaw.includes('thu')?'thu':'chi';
-    const catRaw=cols[catIdx>=0?catIdx:2]||'Khác';
+    if(isAirbnb){
+      const typeCol=header.indexOf('type');
+      const amtCol=header.indexOf('amount');
+      const paidCol=header.indexOf('paid out');
+      const dateCol=header.indexOf('date');
+      const guestCol=header.indexOf('guest');
+      const listingCol=header.indexOf('listing');
 
-    // Match category to known cats
+      const rowType=(cols[typeCol]||'').toLowerCase();
+      // Skip Payout rows (bank transfer), only import Reservation/Adjustment
+      if(rowType==='payout')continue;
+
+      // Use Amount (after Airbnb fee) as revenue
+      const amtRaw=(cols[amtCol]||'').replace(/[^0-9\.]/g,'');
+      amt=Math.round(parseFloat(amtRaw)||0);
+      if(amt===0)continue;
+
+      type='thu';
+      catLabel='Airbnb';
+      dateRaw=cols[dateCol]||'';
+      const guest=cols[guestCol]||'';
+      const listing=(cols[listingCol]||'').substring(0,30);
+      note=guest+(listing?' · '+listing:'');
+
+    } else {
+      // Generic CSV format
+      const dateIdx=header.findIndex(function(h){return h.includes('ngày')||h.includes('date');});
+      const typeIdx=header.findIndex(function(h){return h.includes('loại')||h.includes('type');});
+      const catIdx=header.findIndex(function(h){return h.includes('hạng')||h.includes('cat')||h.includes('label');});
+      const amtIdx=header.findIndex(function(h){return h.includes('tiền')||h.includes('amount')||h.includes('số');});
+      const noteIdx=header.findIndex(function(h){return h.includes('ghi')||h.includes('note');});
+
+      const amtRaw=cols[amtIdx>=0?amtIdx:3]||'0';
+      amt=parseInt(amtRaw.replace(/[^0-9]/g,''))||0;
+      if(amt===0)continue;
+
+      const typeRaw=(cols[typeIdx>=0?typeIdx:1]||'chi').toLowerCase();
+      type=typeRaw.includes('thu')?'thu':'chi';
+      catLabel=cols[catIdx>=0?catIdx:2]||'Khác';
+      dateRaw=cols[dateIdx>=0?dateIdx:0]||'';
+      note=noteIdx>=0?cols[noteIdx]:'';
+    }
+
     const allCats=[...CATS.thu,...CATS.chi];
     const matchedCat=allCats.find(function(c){
-      return catRaw.toLowerCase().includes(c.label.toLowerCase())||c.label.toLowerCase().includes(catRaw.toLowerCase());
-    })||{id:'khac',label:catRaw,icon:'📌'};
-
-    const dateRaw=cols[dateIdx>=0?dateIdx:0]||new Date().toLocaleDateString('vi-VN');
-    const note=noteIdx>=0?cols[noteIdx]:'';
+      return catLabel.toLowerCase().includes(c.label.toLowerCase())||c.label.toLowerCase().includes(catLabel.toLowerCase());
+    })||{id:type==='thu'?'airbnb':'khac',label:catLabel,icon:type==='thu'?'🏡':'📌'};
 
     results.push({
-      id:Date.now()+i,
+      id:Date.now()+i+(Math.random()*100|0),
       type,
       cat:matchedCat.id,
-      label:matchedCat.label||catRaw,
+      label:matchedCat.label||catLabel,
       icon:matchedCat.icon||'📌',
       amount:amt,
       wallet:wallet,
