@@ -517,7 +517,7 @@ function renderBudgetBars(mx){
     chartPage.appendChild(bsEl);
   }
   if(!cats.length){bsEl.style.display='none';return;}
-  bsEl.style.display='block';
+  bsEl.style.display='none'; return; // merged into cat-breakdown
   bsEl.innerHTML='<div style="font-size:10px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Ngân sách tháng này</div>'
     +cats.map(function(k){
       const spent=chiBycat[k]||0;
@@ -567,15 +567,54 @@ function renderChart(){
   thisMo.forEach(function(e){byCat[e.cat]=(byCat[e.cat]||0)+e.amount;});
   const total=Object.values(byCat).reduce(function(s,v){return s+v;},0)||1;
   const sorted=Object.entries(byCat).sort(function(a,b){return b[1]-a[1];});
-  document.getElementById('cat-breakdown').innerHTML=sorted.map(function(kv){
-    const catObj=CATS.chi.find(function(c){return c.id===kv[0];});
-    const pct=Math.round(kv[1]/total*100);
-    return '<div style="margin-bottom:14px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      +'<span style="color:#ccc;font-size:15px;font-weight:500">'+(catObj?catObj.icon+'  '+catObj.label:kv[0])+'</span>'
-      +'<span style="color:#888;font-size:14px">'+fmt(kv[1])+'  <span style="color:#555">'+pct+'%</span></span></div>'
-      +'<div style="height:8px;background:#1a1a1a;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:#f87171;border-radius:4px"></div></div>'
-      +'</div>';
+  // Unified view: merge spending with budget limits
+  // Get all cats that have either spending or budget
+  const allCatIds=new Set([...Object.keys(byCat),...Object.keys(budgets).filter(function(k){return budgets[k]>0;})]);
+  const unifiedRows=[...allCatIds].map(function(k){
+    return{id:k,spent:byCat[k]||0,limit:budgets[k]||0};
+  }).filter(function(r){return r.spent>0||r.limit>0;})
+    .sort(function(a,b){
+      // Sort by % used desc, then by amount desc
+      const pa=a.limit>0?a.spent/a.limit:0;
+      const pb=b.limit>0?b.spent/b.limit:0;
+      return pb-pa||b.spent-a.spent;
+    });
+
+  document.getElementById('cat-breakdown').innerHTML=unifiedRows.map(function(r){
+    const catObj=CATS.chi.find(function(c){return c.id===r.id;});
+    const label=catObj?catObj.icon+'  '+catObj.label:r.id;
+    if(r.limit>0){
+      // Has budget — show as % of budget
+      const pct=Math.min(100,Math.round(r.spent/r.limit*100));
+      const over=r.spent>r.limit;
+      const warn=pct>=80;
+      const barColor=over?'#f87171':warn?'#f59e0b':'#4ade80';
+      const numColor=over?'#f87171':warn?'#f59e0b':'#888';
+      const overTxt=over?' 🔴 +'+fmt(r.spent-r.limit):'';
+      return '<div style="margin-bottom:16px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<span style="color:#ccc;font-size:15px;font-weight:500">'+label+'</span>'
+        +'<span style="color:'+numColor+';font-size:13px;font-weight:500">'+fmt(r.spent)+' / '+fmt(r.limit)+overTxt+'</span></div>'
+        +'<div style="position:relative;height:10px;background:#1a1a1a;border-radius:5px">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:5px;transition:width .3s"></div>'
+        +'<div style="position:absolute;right:0;top:-1px;height:12px;width:1.5px;background:#333"></div>'
+        +'</div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:11px;color:#444;margin-top:3px">'
+        +'<span>0</span><span style="color:'+numColor+'">'+pct+'%</span><span>'+fmt(r.limit)+'</span>'
+        +'</div>'
+        +'</div>';
+    } else {
+      // No budget set — just show spending bar relative to others
+      const pct=Math.round(r.spent/total*100);
+      return '<div style="margin-bottom:16px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<span style="color:#ccc;font-size:15px;font-weight:500">'+label+'</span>'
+        +'<span style="color:#666;font-size:13px">'+fmt(r.spent)+'  <span style="color:#444">'+pct+'% tổng chi</span></span></div>'
+        +'<div style="height:8px;background:#1a1a1a;border-radius:4px">'
+        +'<div style="height:100%;width:'+pct+'%;background:#555;border-radius:4px"></div>'
+        +'</div>'
+        +'</div>';
+    }
   }).join('')||'<div style="color:#333;font-size:13px;text-align:center;padding:20px 0">Chưa có dữ liệu tháng này</div>';
 }
 
