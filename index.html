@@ -443,9 +443,6 @@ function applyScanned() {
   toast('✓ Đã điền số tiền — chọn danh mục và lưu');
 }
 
-// Set default date to today
-document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
-renderCats();render();update();
   toast(type==='chi'?'✓ Đã ghi chi tiêu':'✓ Đã ghi thu nhập');
 }
 
@@ -936,6 +933,8 @@ function applyScanned() {
   toast('✓ Đã điền số tiền — chọn danh mục và lưu');
 }
 
+// Set default date to today
+document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
 renderCats();render();update();
 document.getElementById('month-label').textContent='Tháng '+(new Date().getMonth()+1)+'/'+new Date().getFullYear();
 </script>
