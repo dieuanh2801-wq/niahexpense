@@ -179,6 +179,10 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
     <div class="header">
       <div class="header-title">Chi tiêu</div>
       <div class="header-sub" id="month-label"></div>
+      <div id="wallet-bar" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;background:#0d2a1a;color:#4ade80;border:0.5px solid #4ade80">
+        <span id="wallet-bar-icon">🏢</span>
+        <span id="wallet-bar-label">Đang ghi: Kinh doanh</span>
+      </div>
     </div>
 
     <div class="balance-card">
@@ -331,7 +335,7 @@ const CATS={
 const DEFAULT_BUDGETS={tien_nha:40000000,dien_nuoc:20000000,don_dep:15000000,an_uong:4000000,tieu_hao:3000000,tra_no:11000000,hoc_phi:12000000,sua_chua:5000000,sinh_hoat:5000000,khac:2000000};
 
 let type='chi', cat=null, wallet='biz';
-let entries=[], budgets={};
+let entries=[], let budgets={};
 
 function load(){
   try{entries=JSON.parse(localStorage.getItem('niah_v3')||'[]')}catch(e){}
@@ -433,30 +437,12 @@ function addEntry(){
   entries.unshift(e);save();
   document.getElementById('amount').value='';
   document.getElementById('note').value='';
-cat=null;
-let scannedAmount = null;
-
-
-
-function applyScanned() {
-  if (!scannedAmount) return;
-  document.getElementById('amount').value = scannedAmount;
-
-  // Clear scan UI to prevent duplicate
-  scannedAmount = null;
-  document.getElementById('scan-preview').style.display = 'none';
-  document.getElementById('scan-preview').src = '';
-  document.getElementById('scan-result').style.display = 'none';
-  document.getElementById('scan-apply').style.display = 'none';
-  document.getElementById('scan-err').style.display = 'none';
-  document.getElementById('scan-input').value = '';
-
-  document.querySelector('.log-form').scrollIntoView({ behavior: 'smooth' });
-  toast('✓ Đã điền số tiền — chọn danh mục và lưu');
-}
-
+  cat=null;
+  renderCats();render();update();
   toast(type==='chi'?'✓ Đã ghi chi tiêu':'✓ Đã ghi thu nhập');
 }
+
+
 
 function render(){
   const el=document.getElementById('entries-list');
