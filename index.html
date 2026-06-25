@@ -294,6 +294,7 @@ const CATS={
     {id:'sua_chua',label:'Sửa chữa',icon:'🔧'},
     {id:'sinh_hoat',label:'Sinh hoạt',icon:'👛'},
     {id:'thue',label:'Tiền thuế',icon:'🧾'},
+    {id:'tiet_kiem',label:'Tiết kiệm',icon:'🐷'},
     {id:'khac',label:'Khác',icon:'📌'},
   ],
   thu:[
@@ -429,7 +430,7 @@ function render(){
     const walletBadge=e.wallet==='biz'
       ?'<span style="font-size:10px;color:#4ade80;background:#0d2a1a;padding:1px 6px;border-radius:8px;border:0.5px solid #4ade80">KD</span>'
       :'<span style="font-size:10px;color:#a78bfa;background:#1e1633;padding:1px 6px;border-radius:8px;border:0.5px solid #a78bfa">CN</span>';
-    const switchBtn='<button onclick="switchWallet(''+e.id+'')" style="background:none;border:none;cursor:pointer;font-size:11px;color:#444;padding:0;margin-left:4px" title="Đổi ví">⇄</button>';
+    const switchBtn='<button onclick="switchWallet('+JSON.stringify(e.id)+')" style="background:none;border:none;cursor:pointer;font-size:11px;color:#444;padding:0;margin-left:4px" title="Đổi ví">⇄</button>';
     return '<div class="entry">'
       +'<div class="entry-icon '+e.type+'">'+e.icon+'</div>'
       +'<div class="entry-body">'
