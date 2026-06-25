@@ -60,12 +60,12 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 /* BUDGET BARS */
 .budget-section{margin:0 16px 14px}
 .budget-item{margin-bottom:10px}
-.budget-header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
-.budget-name{color:#888}
-.budget-nums{color:#555}
-.budget-nums.warn{color:#f59e0b}
-.budget-nums.over{color:#f87171}
-.budget-track{height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden}
+.budget-header{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+.budget-name{color:#ccc;font-weight:500}
+.budget-nums{color:#666;font-size:13px}
+.budget-nums.warn{color:#f59e0b;font-weight:500}
+.budget-nums.over{color:#f87171;font-weight:500}
+.budget-track{height:8px;background:#1a1a1a;border-radius:4px;overflow:hidden}
 .budget-fill{height:100%;border-radius:3px;transition:width .3s}
 .budget-fill.ok{background:#4ade80}
 .budget-fill.warn{background:#f59e0b}
@@ -81,9 +81,9 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 .type-btn.active.chi{background:#2d0707;border-color:#f87171;color:#f87171}
 .type-btn.active.thu{background:#052e16;border-color:#4ade80;color:#4ade80}
 .cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:12px}
-.cat-btn{padding:8px 4px;border-radius:10px;border:0.5px solid #1e1e1e;background:#1a1a1a;color:#555;font-size:11px;text-align:center;cursor:pointer;line-height:1.4}
+.cat-btn{padding:10px 4px;border-radius:12px;border:0.5px solid #1e1e1e;background:#1a1a1a;color:#888;font-size:13px;text-align:center;cursor:pointer;line-height:1.4}
 .cat-btn.active{border-color:#a78bfa;background:#1e1633;color:#c4b5fd}
-.cat-icon{font-size:17px;display:block;margin-bottom:2px}
+.cat-icon{font-size:22px;display:block;margin-bottom:4px}
 .amount-input{width:100%;background:#1a1a1a;border:0.5px solid #2a2a2a;border-radius:12px;padding:13px 15px;font-size:22px;font-weight:700;color:#f0f0f0;font-family:-apple-system,sans-serif;outline:none;margin-bottom:8px}
 .amount-input:focus{border-color:#7c3aed}
 .amount-input::placeholder{color:#2a2a2a;font-size:16px;font-weight:400}
@@ -508,15 +508,16 @@ function renderBudgetBars(mx){
     chiBycat[e.cat]=(chiBycat[e.cat]||0)+e.amount;
   });
   const cats=Object.keys(chiBycat).filter(function(k){return budgets[k]>0;});
-  if(!cats.length)return;
-  const container=document.getElementById('page-log');
+  // Put budget bars in chart page, not log page
   let bsEl=document.getElementById('budget-bars-inline');
   if(!bsEl){
     bsEl=document.createElement('div');bsEl.id='budget-bars-inline';
-    bsEl.className='budget-section';
-    const logForm=document.querySelector('.log-form');
-    logForm.parentNode.insertBefore(bsEl,logForm);
+    bsEl.className='chart-wrap';
+    const chartPage=document.getElementById('page-chart');
+    chartPage.appendChild(bsEl);
   }
+  if(!cats.length){bsEl.style.display='none';return;}
+  bsEl.style.display='block';
   bsEl.innerHTML='<div style="font-size:10px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Ngân sách tháng này</div>'
     +cats.map(function(k){
       const spent=chiBycat[k]||0;
@@ -569,11 +570,11 @@ function renderChart(){
   document.getElementById('cat-breakdown').innerHTML=sorted.map(function(kv){
     const catObj=CATS.chi.find(function(c){return c.id===kv[0];});
     const pct=Math.round(kv[1]/total*100);
-    return '<div style="margin-bottom:10px">'
-      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
-      +'<span style="color:#888">'+(catObj?catObj.icon+' '+catObj.label:kv[0])+'</span>'
-      +'<span style="color:#555">'+fmt(kv[1])+' · '+pct+'%</span></div>'
-      +'<div style="height:5px;background:#1a1a1a;border-radius:3px"><div style="height:100%;width:'+pct+'%;background:#f87171;border-radius:3px"></div></div>'
+    return '<div style="margin-bottom:14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="color:#ccc;font-size:15px;font-weight:500">'+(catObj?catObj.icon+'  '+catObj.label:kv[0])+'</span>'
+      +'<span style="color:#888;font-size:14px">'+fmt(kv[1])+'  <span style="color:#555">'+pct+'%</span></span></div>'
+      +'<div style="height:8px;background:#1a1a1a;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:#f87171;border-radius:4px"></div></div>'
       +'</div>';
   }).join('')||'<div style="color:#333;font-size:13px;text-align:center;padding:20px 0">Chưa có dữ liệu tháng này</div>';
 }
