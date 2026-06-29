@@ -293,6 +293,14 @@ html,body{background:#0a0a0a;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
   <div class="page" id="page-settings">
     <div class="header"><div class="header-title">Cài đặt</div><div class="header-sub">Ngân sách & lịch tiền nhà</div></div>
 
+    <div class="reminder-card" style="margin:0 0 14px;display:flex;gap:8px">
+      <button onclick="exportBackup()" style="flex:1;padding:11px;border-radius:11px;border:0.5px solid #4ade80;background:#0d2a1a;color:#4ade80;font-size:13px;font-weight:500;cursor:pointer">💾 Backup data</button>
+      <label style="flex:1;padding:11px;border-radius:11px;border:0.5px solid #7c3aed;background:#1e1633;color:#a78bfa;font-size:13px;font-weight:500;cursor:pointer;text-align:center">
+        📂 Restore
+        <input type="file" accept=".json" style="display:none" onchange="importBackup(event)">
+      </label>
+    </div>
+
     <div class="reminder-card" style="margin-bottom:14px">
       <div style="font-size:11px;color:#444;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Ngân sách tối đa/tháng</div>
       <div id="budget-settings"></div>
@@ -337,19 +345,27 @@ function doReload(){
 <script>
 const CATS={
   chi:[
-    {id:'tien_nha',label:'Tiền nhà KD',icon:'🏠',wallet:'biz'},
-    {id:'tien_nha_2',label:'Tiền nhà CN',icon:'🏡',wallet:'personal'},
-    {id:'dien_nuoc',label:'Điện nước',icon:'⚡'},
-    {id:'don_dep',label:'Dọn dẹp',icon:'🧹'},
-    {id:'an_uong',label:'Ăn uống',icon:'🍜'},
-    {id:'tieu_hao',label:'Tiêu hao',icon:'🛒'},
-    {id:'tra_no',label:'Trả nợ',icon:'💳'},
-    {id:'hoc_phi',label:'Học phí',icon:'📚'},
-    {id:'sua_chua',label:'Sửa chữa',icon:'🔧'},
-    {id:'sinh_hoat',label:'Sinh hoạt',icon:'👛'},
-    {id:'thue',label:'Tiền thuế',icon:'🧾'},
-    {id:'tiet_kiem',label:'Tiết kiệm',icon:'🐷'},
-    {id:'khac',label:'Khác',icon:'📌'},
+    {id:'tien_nha',label:'Tiền nhà',icon:'🏠',wallet:'biz'},
+    {id:'dien_nuoc_kd',label:'Điện nước',icon:'⚡',wallet:'biz'},
+    {id:'don_dep_kd',label:'Dọn dẹp',icon:'🧹',wallet:'biz'},
+    {id:'tieu_hao',label:'Tiêu hao',icon:'🛒',wallet:'biz'},
+    {id:'tra_no',label:'Trả nợ',icon:'💳',wallet:'biz'},
+    {id:'sua_chua',label:'Sửa chữa',icon:'🔧',wallet:'biz'},
+    {id:'thue',label:'Tiền thuế',icon:'🧾',wallet:'biz'},
+    {id:'bao_tri',label:'Bảo trì',icon:'🛡️',wallet:'biz'},
+    {id:'phat_sinh',label:'Phát sinh',icon:'📌',wallet:'biz'},
+    {id:'tien_nha_2',label:'Tiền nhà',icon:'🏡',wallet:'personal'},
+    {id:'dien_nuoc',label:'Điện nước',icon:'⚡',wallet:'personal'},
+    {id:'don_dep',label:'Dọn dẹp',icon:'🧹',wallet:'personal'},
+    {id:'xang_xe',label:'Xăng xe',icon:'⛽',wallet:'personal'},
+    {id:'dien_thoai',label:'Điện thoại',icon:'📱',wallet:'personal'},
+    {id:'di_cho',label:'Đi chợ',icon:'🛍️',wallet:'personal'},
+    {id:'cafe',label:'Cafe',icon:'☕',wallet:'personal'},
+    {id:'an_uong',label:'Ăn uống',icon:'🍜',wallet:'personal'},
+    {id:'du_lich',label:'Du lịch',icon:'✈️',wallet:'personal'},
+    {id:'hoc_phi',label:'Học phí',icon:'📚',wallet:'personal'},
+    {id:'tiet_kiem',label:'Tiết kiệm',icon:'🐷',wallet:'personal'},
+    {id:'khac',label:'Khác',icon:'📌',wallet:'personal'},
   ],
   thu:[
     {id:'airbnb',label:'Airbnb',icon:'🏡'},
@@ -360,8 +376,8 @@ const CATS={
   ]
 };
 
-const DEFAULT_BUDGETS_BIZ={tien_nha:40000000,dien_nuoc:20000000,don_dep:15000000,tieu_hao:3000000,tra_no:11000000,thue:2000000,khac:2000000};
-const DEFAULT_BUDGETS_PER={tien_nha_2:5000000,an_uong:4000000,sinh_hoat:5000000,hoc_phi:12000000,tra_no:6500000,tiet_kiem:5000000,khac:1000000};
+const DEFAULT_BUDGETS_BIZ={tien_nha:40000000,dien_nuoc_kd:20000000,don_dep_kd:15000000,tieu_hao:3000000,tra_no:11000000,sua_chua:5000000,thue:2000000,bao_tri:5000000,phat_sinh:2000000};
+const DEFAULT_BUDGETS_PER={tien_nha_2:5000000,dien_nuoc:1000000,don_dep:1000000,xang_xe:1000000,dien_thoai:500000,di_cho:3000000,cafe:1000000,an_uong:2000000,du_lich:3000000,hoc_phi:12000000,tiet_kiem:5000000,khac:1000000};
 
 let type='chi', cat=null, wallet='biz';
 let entries=[], budgets={};
@@ -372,7 +388,56 @@ function load(){
   try{budgets=JSON.parse(localStorage.getItem('niah_budgets')||'null')||{biz:{...DEFAULT_BUDGETS_BIZ},personal:{...DEFAULT_BUDGETS_PER}}}catch(e){budgets={biz:{...DEFAULT_BUDGETS_BIZ},personal:{...DEFAULT_BUDGETS_PER}}}
 }
 
-function save(){try{localStorage.setItem('niah_v3',JSON.stringify(entries))}catch(e){}}
+function save(){
+  try{localStorage.setItem('niah_v3',JSON.stringify(entries))}catch(e){}
+  try{localStorage.setItem('niah_backup_time',new Date().toISOString())}catch(e){}
+}
+
+function syncToSheet(e){
+  // Submit to Google Form silently — no CORS issue with no-cors mode
+  const FORM_URL='https://docs.google.com/forms/d/e/1FAIpQLSf51BGWXYimLLMDOFaJNswb6EppStl_kPNZNYmmJwiJ3sfnHA/formResponse';
+  const data=new FormData();
+  data.append('entry.695675284', e.dateStr||new Date().toISOString().split('T')[0]);
+  data.append('entry.1702177555', e.type==='thu'?'Thu':'Chi');
+  data.append('entry.367581761', e.label||e.cat);
+  data.append('entry.904784246', e.amount);
+  data.append('entry.1202717332', e.note||'');
+  data.append('entry.1929002835', e.wallet==='biz'?'Kinh doanh':'Cá nhân');
+  data.append('entry.800204486', e.id);
+  fetch(FORM_URL,{method:'POST',mode:'no-cors',body:data}).catch(function(){});
+}
+
+function exportBackup(){
+  const data={entries:entries,budgets:budgets,exported:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='niah-backup-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('✓ Đã tải backup xuống!');
+}
+
+function importBackup(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(data.entries){
+        if(!confirm('Khôi phục '+data.entries.length+' giao dịch từ backup '+data.exported.split('T')[0]+'?'))return;
+        entries=data.entries;
+        if(data.budgets) budgets=data.budgets;
+        save();render();update();
+        toast('✓ Đã khôi phục '+entries.length+' giao dịch!');
+      }
+    }catch(err){toast('File backup không hợp lệ');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
 
 function switchWallet(id){
   const idx=entries.findIndex(function(e){return e.id==id;});
@@ -499,7 +564,7 @@ function addEntry(){
     time:entryDate.toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
     dateStr:dateVal||new Date().toISOString().split('T')[0]
   };
-  entries.unshift(e);save();
+  entries.unshift(e);save();syncToSheet(e);
   document.getElementById('amount').value='';
   document.getElementById('note').value='';
   document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
@@ -964,25 +1029,6 @@ async function handleScan(e) {
       }
     }
 
-    // Strategy 2b: Shopee/payment confirmation — "214.200đ" or "214.200d" or "214.200" after keywords
-    // OCR often reads đ as various chars, so match broadly after payment keywords
-    if (!bestAmount) {
-      const m2b = text.match(/(?:thanh toán|đã thanh toán|tổng tiền|số tiền)[^\d]{0,20}([1-9]\d{0,2}(?:[.,]\d{3})+)\s*[đdĐ]?/i);
-      if (m2b) {
-        const c = parseInt(m2b[1].replace(/[.,]/g, ''));
-        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'Thanh toán'; }
-      }
-    }
-
-    // Strategy 2c: any "X.XXX đ" or "X.XXXđ" pattern (dot thousands, even single group) — Shopee style
-    if (!bestAmount) {
-      const m2c = text.match(/\b([1-9]\d{0,2}(?:\.\d{3})+)\s*[đdĐ]/i);
-      if (m2c) {
-        const c = parseInt(m2c[1].replace(/\./g, ''));
-        if (c >= 1000 && c <= 999999999) { bestAmount = c; note = 'Số tiền'; }
-      }
-    }
-
     // Strategy 3: ShopeePay/ZaloPay — "-107.000a" or "-107.000đ" (OCR reads đ as a/d/o)
     if (!bestAmount) {
       const m3 = text.match(/[-]([1-9]\d{0,2}[\.,]\d{3}(?:[\.,]\d{3})*)\s*[đdaob]?/i);
@@ -1053,6 +1099,34 @@ async function handleScan(e) {
       scannedAmount = bestAmount;
       const ctx = text.match(/chuyển thành công|thanh toán thành công/i);
       if (ctx) note = ctx[0];
+
+      // Try to extract date from OCR text
+      // Patterns: 24/06/2026, 24-06-2026, 25-06-26, Jun 20 2026
+      let scannedDate = null;
+      const datePatterns = [
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})/,   // dd/mm/yyyy or dd-mm-yyyy
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})(?!\d)/, // dd/mm/yy
+        /(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/,    // yyyy/mm/dd
+      ];
+      for (const pat of datePatterns) {
+        const m = text.match(pat);
+        if (m) {
+          let y, mo, d;
+          if (m[1].length === 4) { y=m[1]; mo=m[2]; d=m[3]; }
+          else if (m[3].length === 2) { d=m[1]; mo=m[2]; y='20'+m[3]; }
+          else { d=m[1]; mo=m[2]; y=m[3]; }
+          const dt = new Date(+y, +mo-1, +d);
+          if (!isNaN(dt) && dt.getFullYear() >= 2020 && dt.getFullYear() <= 2030) {
+            scannedDate = y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+            break;
+          }
+        }
+      }
+      if (scannedDate) {
+        document.getElementById('entry-date').value = scannedDate;
+        note = (note||'') + (note?' · ':'') + '📅 '+scannedDate;
+      }
+
       document.getElementById('scan-amount-display').textContent = bestAmount.toLocaleString('vi') + 'đ';
       document.getElementById('scan-note-display').textContent = note;
       document.getElementById('scan-result').style.display = 'block';
